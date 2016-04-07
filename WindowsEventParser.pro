@@ -14,6 +14,7 @@ CONFIG   -= app_bundle
 
 TEMPLATE = app
 
+#DEFINES += DEBUG_OUTPUT
 
 SOURCES += main.cpp \
     windowseventparser.cpp \

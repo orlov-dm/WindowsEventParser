@@ -18,25 +18,36 @@ struct Event
     EventID id = EventID::UNKNOWN;
     std::wstring source = L"";
 };
-enum ParserFlag { USE_SYSTEM_EVENTS = 0x1, USE_SECURITY_EVENTS = 0x2, USE_ALL = ParserFlag::USE_SECURITY_EVENTS | ParserFlag::USE_SYSTEM_EVENTS };
+enum ParserFlag { USE_SYSTEM_EVENTS = 0x1, USE_SECURITY_EVENTS = 0x2, USE_CUSTOM_EVENTS = 0x4, USE_ALL = USE_SECURITY_EVENTS | USE_SYSTEM_EVENTS | USE_CUSTOM_EVENTS };
 class WindowsEventParser
 {
 public:
-    WindowsEventParser(ParserFlag flags = ParserFlag::USE_ALL);
+    WindowsEventParser(int flags = ParserFlag::USE_ALL, bool needDebugOutput = false);
+    void setCustomEventStart(const std::list<Event> &lst, const std::wstring& path);
+    void setCustomEventFinish(const std::list<Event> &lst, const std::wstring& path);
+
     time_t getLogOnTimeByDate(const time_t &date);
     time_t getLogOffTimeByDate(const time_t &date);
 
 protected:
-    DWORD getEventTimesByDate(const time_t &date, const std::list<Event> &events, const std::wstring &path, std::list<time_t> *times);
+    time_t getLogTimeBase(const time_t &date,  bool isLogOn);
+    DWORD getEventTimesByDate(const time_t &dateFrom, const std::list<Event> *events, const std::wstring &path, std::list<time_t> *times);
     DWORD getResults(EVT_HANDLE hResults, std::list<time_t> *times);
     DWORD getEventSystemTime(EVT_HANDLE hEvent, time_t *eventSystemTime);
 
 private:
-    ParserFlag m_flags;
+    int m_flags; //Combination of ParseFlags    
+    bool m_debugOutput = false;
+
     static const unsigned int ARRAY_SIZE = 10;
     static const std::list<Event> SYSTEM_EVENTS_START;
     static const std::list<Event> SYSTEM_EVENTS_FINISH;
     static const std::list<Event> SECURITY_EVENTS;
+
+    std::list<Event> m_customEventsStart;
+    std::list<Event> m_customEventsFinish;
+    std::wstring m_customEventsStartPath = L"";
+    std::wstring m_customEventsFinishPath = L"";
 
     static const unsigned long ERROR_NO_EVENTS = 20000;
 };

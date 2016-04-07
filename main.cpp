@@ -16,22 +16,25 @@ using namespace std;
 //#pragma comment(lib, "Ole32.lib")
 //#pragma comment(lib, "Advapi32.lib")
 
-
 #include <QDateTime>
 
 
 int main()
 {	
+    bool needDebug = false;
+#ifdef DEBUG_OUTPUT
+    needDebug = true;
+#endif
 	// Just a test use case
     cout << "Enter 1 for USE_SYSTEM_EVENTS or 2 for USE_SECURITY_EVENTS:" << endl;
     ParserFlag flag;
     int getFlag;
     cin >> getFlag;
     if(getFlag)
-    flag = static_cast<ParserFlag>(getFlag);
+        flag = static_cast<ParserFlag>(getFlag);
     if(getFlag == ParserFlag::USE_SYSTEM_EVENTS || getFlag == ParserFlag::USE_SECURITY_EVENTS)
     {
-        WindowsEventParser testParser(flag);
+        WindowsEventParser testParser(flag, needDebug);
         QDateTime dt;
         for(int i = 1; i <= 31; ++i)
         {

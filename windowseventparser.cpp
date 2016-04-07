@@ -323,18 +323,7 @@ DWORD WindowsEventParser::getEventSystemTime(EVT_HANDLE hEvent, time_t *eventSys
     FileTimeToLocalFileTime(&ft, &lt);
     FileTimeToSystemTime(&lt, &st);
 
-
-    std::tm tm;
-
-    tm.tm_sec = st.wSecond;
-    tm.tm_min = st.wMinute;
-    tm.tm_hour = st.wHour;
-    tm.tm_mday = st.wDay;
-    tm.tm_mon = st.wMonth - 1;
-    tm.tm_year = st.wYear - 1900;
-    tm.tm_isdst = -1;
-
-    *eventSystemTime = std::mktime(&tm);
+    *eventSystemTime = getTimeFromSystemTime(st);
 
 cleanup:
 

@@ -29,8 +29,9 @@ const list<Event> WindowsEventParser::SYSTEM_EVENTS_FINISH = {
 };
 
 const std::list<Event> WindowsEventParser::SECURITY_EVENTS = {
-    Event(EventID::SECURITY_OPERATION_1, L"Microsoft-Windows-Security-Auditing")/*,
-    Event(EventID::SECURITY_OPERATION_2, L"Microsoft-Windows-Security-Auditing")*/
+    Event(EventID::SECURITY_OPERATION_1, L"Microsoft-Windows-Security-Auditing"),
+    Event(EventID::SECURITY_OPERATION_2, L"Microsoft-Windows-Security-Auditing"),
+    Event(EventID::SECURITY_OPERATION_3, L"Microsoft-Windows-Security-Auditing")
 };
 
 

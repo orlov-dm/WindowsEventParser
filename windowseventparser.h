@@ -21,22 +21,17 @@ struct Event
 enum ParserFlag { USE_SYSTEM_EVENTS = 0x1, USE_SECURITY_EVENTS = 0x2, USE_CUSTOM_EVENTS = 0x4, USE_ALL = USE_SECURITY_EVENTS | USE_SYSTEM_EVENTS | USE_CUSTOM_EVENTS };
 class WindowsEventParser
 {
-public:
-    WindowsEventParser(int flags = ParserFlag::USE_ALL, bool needDebugOutput = false);
-    void setCustomEventStart(const std::list<Event> &lst, const std::wstring& path);
-    void setCustomEventFinish(const std::list<Event> &lst, const std::wstring& path);
-
-    time_t getLogOnTimeByDate(const time_t &date);
-    time_t getLogOffTimeByDate(const time_t &date);
 
 protected:
-    time_t getLogTimeBase(const time_t &date,  bool isLogOn);
-    DWORD getEventTimesByDate(const time_t &dateFrom, const std::list<Event> *events, const std::wstring &path, std::list<time_t> *times);
-    DWORD getResults(EVT_HANDLE hResults, std::list<time_t> *times);
-    DWORD getEventSystemTime(EVT_HANDLE hEvent, time_t *eventSystemTime);
+    time_t getLogTimeBase(const time_t &date,  bool isLogOn) const;
+    DWORD getEventTimesByDate(const time_t &dateFrom, const std::list<Event> *events, const std::wstring &path, std::list<time_t> *times) const;
+    DWORD getResults(EVT_HANDLE hResults, std::list<time_t> *times) const;
+    DWORD getEventSystemTime(EVT_HANDLE hEvent, time_t *eventSystemTime) const;
 
 private:
-    int m_flags; //Combination of ParseFlags    
+    WindowsEventParser() {}
+
+    int m_flags = ParserFlag::USE_ALL; //Combination of ParseFlags
     bool m_debugOutput = false;
 
     static const unsigned int ARRAY_SIZE = 10;
@@ -50,6 +45,26 @@ private:
     std::wstring m_customEventsFinishPath = L"";
 
     static const unsigned long ERROR_NO_EVENTS = 20000;
+
+public:
+    static WindowsEventParser &getInstance()
+    {
+        static WindowsEventParser instance;
+        return instance;
+    }
+
+    WindowsEventParser(const WindowsEventParser&) = delete;
+    void operator=(const WindowsEventParser&) = delete;
+
+    void setFlags(int flags) { m_flags = flags; }
+    void setDebugOutput(bool value) { m_debugOutput = value; }
+
+    void setCustomEventStart(const std::list<Event> &lst, const std::wstring& path);
+    void setCustomEventFinish(const std::list<Event> &lst, const std::wstring& path);
+
+    time_t getLogOnTimeByDate(const time_t &date) const;
+    time_t getLogOffTimeByDate(const time_t &date) const;
+
 };
 
 #endif // WINDOWSEVENTPARSER_H

@@ -34,13 +34,10 @@ const std::list<Event> WindowsEventParser::SECURITY_EVENTS = {
     Event(EventID::SECURITY_OPERATION_3, L"Microsoft-Windows-Security-Auditing")
 };
 
-
-WindowsEventParser::WindowsEventParser(int flags, bool needDebugOutput):
-    m_flags(flags),
-    m_debugOutput(needDebugOutput)
-{
-
-}
+//int WindowsEventParser::m_flags = ;
+//bool WindowsEventParser::m_debugOutput ;
+//std::wstring WindowsEventParser::m_customEventsStartPath = L"";
+//std::wstring WindowsEventParser::m_customEventsFinishPath = L"";
 
 void WindowsEventParser::setCustomEventStart(const std::list<Event> &lst, const std::wstring& path)
 {
@@ -64,17 +61,17 @@ void WindowsEventParser::setCustomEventFinish(const std::list<Event> &lst, const
     }
 }
 
-time_t WindowsEventParser::getLogOnTimeByDate(const time_t &date)
+time_t WindowsEventParser::getLogOnTimeByDate(const time_t &date) const
 {
     return getLogTimeBase(date, true);
 }
 
-time_t WindowsEventParser::getLogOffTimeByDate(const time_t &date)
+time_t WindowsEventParser::getLogOffTimeByDate(const time_t &date) const
 {
     return getLogTimeBase(date, false);
 }
 
-time_t WindowsEventParser::getLogTimeBase(const time_t &date,  bool isLogOn)
+time_t WindowsEventParser::getLogTimeBase(const time_t &date,  bool isLogOn) const
 {
     list<time_t> times;
     int status = -1;
@@ -132,7 +129,7 @@ time_t WindowsEventParser::getLogTimeBase(const time_t &date,  bool isLogOn)
     return 0;
 }
 
-DWORD WindowsEventParser::getEventTimesByDate(const time_t &dateFrom, const std::list<Event> *events, const std::wstring &path, std::list<time_t> *times)
+DWORD WindowsEventParser::getEventTimesByDate(const time_t &dateFrom, const std::list<Event> *events, const std::wstring &path, std::list<time_t> *times) const
 {
     DWORD status = ERROR_SUCCESS;
     EVT_HANDLE hResults = NULL;
@@ -220,7 +217,7 @@ clean:
     return status;
 }
 
-DWORD WindowsEventParser::getResults(EVT_HANDLE hResults, list<time_t> *times)
+DWORD WindowsEventParser::getResults(EVT_HANDLE hResults, list<time_t> *times) const
 {
     DWORD status = ERROR_SUCCESS;
     EVT_HANDLE hEvents[ARRAY_SIZE];
@@ -273,7 +270,7 @@ cleanup:
     return status;
 }
 
-DWORD WindowsEventParser::getEventSystemTime(EVT_HANDLE hEvent, time_t *eventSystemTime)
+DWORD WindowsEventParser::getEventSystemTime(EVT_HANDLE hEvent, time_t *eventSystemTime) const
 {
     DWORD status = ERROR_SUCCESS;
     EVT_HANDLE hContext = NULL;

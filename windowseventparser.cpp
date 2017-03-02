@@ -7,129 +7,75 @@
 
 #include <string>
 #include <list>
+#include <map>
+#include <algorithm>
 
 #include "common.h"
 
 #define LOGD if(m_debugOutput) wcout
 
 using std::list;
+using std::pair;
+using std::map;
 using std::wstring;
 using std::to_wstring;
 using std::wcout;
 using std::endl;
 
-const list<Event> WindowsEventParser::SYSTEM_EVENTS_START = {
-    Event(EventID::SLEEP_OFF, L"Microsoft-Windows-Power-Troubleshooter"),
-    Event(EventID::TURN_ON, L"Microsoft-Windows-Kernel-General")
+const list<EventType> WindowsEventParser::SYSTEM_EVENTS_START = {
+//    Event(EventID::SLEEP_OFF, L"Microsoft-Windows-Power-Troubleshooter"),
+    EventType(EventID::TURN_ON, L"Microsoft-Windows-Kernel-General")
 };
 
-const list<Event> WindowsEventParser::SYSTEM_EVENTS_FINISH = {
-    Event(EventID::SLEEP_ON, L"Microsoft-Windows-Kernel-Power"),
-    Event(EventID::TURN_OFF, L"User32")
+const list<EventType> WindowsEventParser::SYSTEM_EVENTS_FINISH = {
+//    EventType(EventID::SLEEP_ON, L"Microsoft-Windows-Kernel-Power"),
+    EventType(EventID::TURN_OFF, L"Microsoft-Windows-Kernel-General")
 };
 
-const std::list<Event> WindowsEventParser::SECURITY_EVENTS = {
-    Event(EventID::SECURITY_OPERATION_1, L"Microsoft-Windows-Security-Auditing"),
-    Event(EventID::SECURITY_OPERATION_2, L"Microsoft-Windows-Security-Auditing"),
-    Event(EventID::SECURITY_OPERATION_3, L"Microsoft-Windows-Security-Auditing")
+const std::list<EventType> WindowsEventParser::SECURITY_EVENTS_START = {
+    EventType(EventID::SEC_UNLOCK, L"Microsoft-Windows-Security-Auditing"),
 };
 
-//int WindowsEventParser::m_flags = ;
-//bool WindowsEventParser::m_debugOutput ;
-//std::wstring WindowsEventParser::m_customEventsStartPath = L"";
-//std::wstring WindowsEventParser::m_customEventsFinishPath = L"";
+const std::list<EventType> WindowsEventParser::SECURITY_EVENTS_FINISH = {
+    EventType(EventID::SEC_LOCK, L"Microsoft-Windows-Security-Auditing"),
+};
 
-void WindowsEventParser::setCustomEventStart(const std::list<Event> &lst, const std::wstring& path)
-{
-    if(lst.size() && !path.empty())
-    {
-        m_customEventsStart = lst;
-        m_customEventsStartPath = path;
-
-        if(!(m_flags & ParserFlag::USE_CUSTOM_EVENTS))
-            m_flags |= ParserFlag::USE_CUSTOM_EVENTS;
-    }
-}
-void WindowsEventParser::setCustomEventFinish(const std::list<Event> &lst, const std::wstring& path)
-{
-    if(lst.size() && !path.empty())
-    {
-        m_customEventsFinish = lst;
-        m_customEventsFinishPath = path;
-        if(!(m_flags & ParserFlag::USE_CUSTOM_EVENTS))
-            m_flags |= ParserFlag::USE_CUSTOM_EVENTS;
-    }
-}
-
-time_t WindowsEventParser::getLogOnTimeByDate(const time_t &date) const
-{
-    return getLogTimeBase(date, true);
-}
-
-time_t WindowsEventParser::getLogOffTimeByDate(const time_t &date) const
-{
-    return getLogTimeBase(date, false);
-}
-
-time_t WindowsEventParser::getLogTimeBase(const time_t &date,  bool isLogOn) const
-{
-    list<time_t> times;
+pair<map<time_t, time_t>, map<time_t, time_t>> WindowsEventParser::getLogTimesByDate(const time_t &dateFrom, const time_t &dateTo) const
+{        
+    map<time_t, time_t> daysLogOns, daysLogOffs;
     int status = -1;
     wstring path = L"";
-    const list<Event> *events;
+    list<EventType> events;
     if(m_flags & ParserFlag::USE_SYSTEM_EVENTS)
     {
         path = L"System";
-        events = isLogOn?&SYSTEM_EVENTS_START:&SYSTEM_EVENTS_FINISH;
-        status = getEventTimesByDate(date, events, path, &times);
-        if(status == ERROR_SUCCESS && times.size())
-            return isLogOn?times.front():times.back();
-        else
+        events.insert(events.end(), SYSTEM_EVENTS_START.begin(), SYSTEM_EVENTS_START.end());
+        events.insert(events.end(), SYSTEM_EVENTS_FINISH.begin(), SYSTEM_EVENTS_FINISH.end());
+        status = getEventTimesByDate(dateFrom, dateTo, &events, path, &daysLogOns, &daysLogOffs);
+        if(status != ERROR_SUCCESS)
         {
             LOGD<<L"getEventTimesByDate Failed By System Events" << endl;
-            if(!times.size())
-                LOGD << L"Times are empty" << endl;
-            if(status != ERROR_SUCCESS)
-                LOGD << L"Error: " << status << endl;
+            LOGD << L"Error: " << status << endl;
+            wcout<<L"Failed to Get Log Time for date: "<<ctime(&dateFrom);
         }
     }
     if(m_flags & ParserFlag::USE_SECURITY_EVENTS)
     {
-        path = L"Security";
-        events = &SECURITY_EVENTS;
-        status = getEventTimesByDate(date, events, path, &times);
-        if(status == ERROR_SUCCESS && times.size())
-            return isLogOn?times.front():times.back();
-        else
+        path = L"Security";        
+        events.insert(events.end(), SECURITY_EVENTS_START.begin(), SECURITY_EVENTS_START.end());
+        events.insert(events.end(), SECURITY_EVENTS_FINISH.begin(), SECURITY_EVENTS_FINISH.end());
+        status = getEventTimesByDate(dateFrom, dateTo, &events, path, &daysLogOns, &daysLogOffs);
+        if(status != ERROR_SUCCESS)
         {
-            LOGD<<L"getEventTimesByDate Failed By Security Events" << endl;
-            if(!times.size())
-                LOGD << L"Times are empty" << endl;
-            if(status != ERROR_SUCCESS)
-                LOGD << L"Error: " << status << endl;
+            LOGD<<L"getEventTimesByDate Failed By Security Events" << endl;                        
+            LOGD << L"Error: " << status << endl;
+            wcout<<L"Failed to Get Log Time for date: "<<ctime(&dateFrom);
         }
-    }
-    if(m_flags & ParserFlag::USE_CUSTOM_EVENTS)
-    {
-        path = isLogOn?m_customEventsStartPath: m_customEventsFinishPath;
-        events = isLogOn?&m_customEventsStart:&m_customEventsFinish;
-        status = getEventTimesByDate(date, events, path, &times);
-        if(status == ERROR_SUCCESS && times.size())
-            return isLogOn?times.front():times.back();
-        else
-        {
-            LOGD<<L"getEventTimesByDate Failed By Custom Events" << endl;
-            if(!times.size())
-                LOGD << L"Times are empty" << endl;
-            if(status != ERROR_SUCCESS)
-                LOGD << L"Error: " << status << endl;
-        }
-    }
-    wcout<<L"Failed to Get Log " << (isLogOn?L"On":L"Off") << L"Time for date: "<<ctime(&date);
-    return 0;
+    }        
+    return {daysLogOns, daysLogOffs};
 }
 
-DWORD WindowsEventParser::getEventTimesByDate(const time_t &dateFrom, const std::list<Event> *events, const std::wstring &path, std::list<time_t> *times) const
+DWORD WindowsEventParser::getEventTimesByDate(const time_t &dateFrom, const time_t &dateTo, const std::list<EventType> *events, const std::wstring &path, map<time_t, time_t> *daysLogOns, map<time_t, time_t> *daysLogOffs) const
 {
     DWORD status = ERROR_SUCCESS;
     EVT_HANDLE hResults = NULL;
@@ -137,7 +83,7 @@ DWORD WindowsEventParser::getEventTimesByDate(const time_t &dateFrom, const std:
     struct tm dateTMFrom, dateTMTo;
     //TODO check for errors
     localtime_s(&dateTMFrom, &dateFrom);
-    auto dateTo = dateFrom + 3600*24; // Add day in seconds 3600 seconds in hour * 24 hours
+//    auto dateTo = dateFrom + 3600*24; // Add day in seconds 3600 seconds in hour * 24 hours
     localtime_s(&dateTMTo, &dateTo);
 
     //stTo = add(stFrom, 3600*24); // Add day
@@ -161,7 +107,7 @@ DWORD WindowsEventParser::getEventTimesByDate(const time_t &dateFrom, const std:
     if(!events->size())
     {
         wcout << "No events passed" << endl;
-        return ERROR_NO_EVENTS;
+        return status;
     }
 
     int counter = 0;
@@ -185,7 +131,7 @@ DWORD WindowsEventParser::getEventTimesByDate(const time_t &dateFrom, const std:
     sPwsQuery += L" and TimeCreated[@SystemTime >= ";
     sPwsQuery += timeParamFrom;
     sPwsQuery += L" and ";
-    sPwsQuery += L"@SystemTime <= ";
+    sPwsQuery += L"@SystemTime < ";
     sPwsQuery += timeParamTo;
     sPwsQuery += L"]]";
 
@@ -208,7 +154,7 @@ DWORD WindowsEventParser::getEventTimesByDate(const time_t &dateFrom, const std:
             wcout << L"EvtQuery failed with " << status << "." << endl;
         goto clean;
     }    
-    getResults(hResults, times);
+    getResults(hResults, path, daysLogOns, daysLogOffs);
 clean:
     if (hResults)
     {        
@@ -217,11 +163,39 @@ clean:
     return status;
 }
 
-DWORD WindowsEventParser::getResults(EVT_HANDLE hResults, list<time_t> *times) const
+DWORD WindowsEventParser::getResults(EVT_HANDLE hResults, const std::wstring &path, map<time_t, time_t> *daysLogOns, map<time_t, time_t> *daysLogOffs) const
 {
     DWORD status = ERROR_SUCCESS;
     EVT_HANDLE hEvents[ARRAY_SIZE];
     DWORD dwReturned = 0;
+    const std::list<EventType> *eventStartList = nullptr;
+    const std::list<EventType> *eventFinishList = nullptr;
+    if(path == L"System")
+    {
+        eventStartList = &SYSTEM_EVENTS_START;
+        eventFinishList = &SYSTEM_EVENTS_FINISH;
+    }
+    else if(path == L"Security")
+    {
+        eventStartList = &SECURITY_EVENTS_START;
+        eventFinishList = &SECURITY_EVENTS_FINISH;
+    }
+
+    if(!eventStartList || !eventFinishList)
+    {
+        wcout << L"No event Start List of Finish List" << endl;
+        return ERROR_NO_EVENTS;
+    }
+
+    auto checkIfLogin = [&](const auto &eventType) {
+        if(std::count(eventStartList->begin(), eventStartList->end(), eventType))
+            return true;
+        else
+            return false;
+    };
+
+
+    map<time_t, time_t> *daysLog;
     while (true)
     {
         // Get a block of events from the result set.
@@ -236,18 +210,47 @@ DWORD WindowsEventParser::getResults(EVT_HANDLE hResults, list<time_t> *times) c
             goto cleanup;
         }
 
-        // For each event, call the PrintEvent function which renders the
-        // event for display. PrintEvent is shown in RenderingEvents.
+
 
         for (DWORD i = 0; i < dwReturned; i++)
         {
-            time_t time;
-            if (ERROR_SUCCESS == (status = getEventSystemTime(hEvents[i], &time)))
+            EventInfo eventInfo;
+            if (ERROR_SUCCESS == (status = getEventInfo(hEvents[i], &eventInfo)))
             {
-                //wcout<<"GOOD getResults"<<endl;
+                bool isLogin = checkIfLogin(eventInfo.type);
+                daysLog = isLogin?daysLogOns:daysLogOffs;
+
+                struct tm date;
+                localtime_s(&date, &eventInfo.time);
+                date.tm_hour = 0;
+                date.tm_min = 0;
+                date.tm_sec = 0;
+
+                time_t day = mktime(&date);
+                wcout<<L"GOOD getResults for Event:" << static_cast<int>(eventInfo.type.id) << " " << ctime(&day) << " isLogin " << isLogin << endl;
                 EvtClose(hEvents[i]);
                 hEvents[i] = NULL;
-                times->push_front(time);
+
+                auto dayIt = daysLog->find(day);
+                bool shouldWrite = false;
+                if(dayIt != daysLog->end())
+                {
+                    wcout<<L"Already found that day with time "<<ctime(&dayIt->second);
+                    wcout<<L"New time is "<<ctime(&eventInfo.time);
+                    if(isLogin && dayIt->second > eventInfo.time || !isLogin && dayIt->second < eventInfo.time)
+                    {
+                        wcout<<L"Overwrite";
+                        shouldWrite = true;
+                    }
+                }
+                else
+                {
+                    wcout<<L"Not found that day "<<ctime(&eventInfo.time)<<endl;
+                    shouldWrite = true;
+                }
+
+                if(shouldWrite)
+                    (*daysLog)[day] = eventInfo.time;
             }
             else
             {
@@ -256,9 +259,6 @@ DWORD WindowsEventParser::getResults(EVT_HANDLE hResults, list<time_t> *times) c
             }
         }
     }
-
-    if(times->size())
-        times->sort();
 
 cleanup:   
     for (DWORD i = 0; i < dwReturned; i++)
@@ -270,7 +270,7 @@ cleanup:
     return status;
 }
 
-DWORD WindowsEventParser::getEventSystemTime(EVT_HANDLE hEvent, time_t *eventSystemTime) const
+DWORD WindowsEventParser::getEventInfo(EVT_HANDLE hEvent, EventInfo *eventInfo) const
 {
     DWORD status = ERROR_SUCCESS;
     EVT_HANDLE hContext = NULL;
@@ -281,6 +281,7 @@ DWORD WindowsEventParser::getEventSystemTime(EVT_HANDLE hEvent, time_t *eventSys
     ULONGLONG ullTimeStamp = 0;
     SYSTEMTIME st;
     FILETIME ft, lt;
+    EventType type;
 
     // Identify the components of the event that you want to render. In this case,
     // render the system section of the event.
@@ -322,6 +323,15 @@ DWORD WindowsEventParser::getEventSystemTime(EVT_HANDLE hEvent, time_t *eventSys
         }
     }
 
+    DWORD eventID = pRenderedValues[EvtSystemEventID].UInt16Val;
+    if (EvtVarTypeNull != pRenderedValues[EvtSystemQualifiers].Type)
+    {
+        eventID = MAKELONG(pRenderedValues[EvtSystemEventID].UInt16Val, pRenderedValues[EvtSystemQualifiers].UInt16Val);
+    }
+
+    type.id = static_cast<EventID>(eventID);
+    type.source = pRenderedValues[EvtSystemProviderName].StringVal;
+
     ullTimeStamp = pRenderedValues[EvtSystemTimeCreated].FileTimeVal;
     //wprintf(L"ullTimeStamp: %I64u\n", ullTimeStamp);
     ft.dwHighDateTime = (DWORD)((ullTimeStamp >> 32) & 0xFFFFFFFF);
@@ -331,7 +341,10 @@ DWORD WindowsEventParser::getEventSystemTime(EVT_HANDLE hEvent, time_t *eventSys
     FileTimeToLocalFileTime(&ft, &lt);
     FileTimeToSystemTime(&lt, &st);
 
-    *eventSystemTime = getTimeFromSystemTime(st);
+
+
+    eventInfo->time = getTimeFromSystemTime(st);
+    eventInfo->type = type;
 
 cleanup:
 
@@ -345,3 +358,8 @@ cleanup:
 }
 
 
+
+bool operator ==(const EventType &first, const EventType &second)
+{
+    return first.id == second.id && first.source == second.source;
+}
